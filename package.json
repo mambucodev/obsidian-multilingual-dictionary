@@ -23,6 +23,7 @@
 		"fast-xml-parser": "^5.3.5",
 		"nanotar": "^0.2.0",
 		"pako": "^2.1.0",
+		"snowball-stemmers": "^0.6.0",
 		"xz-decompress": "^0.2.3"
 	}
 }

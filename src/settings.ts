@@ -112,7 +112,7 @@ export class DictionarySettingTab extends PluginSettingTab {
 		} else {
 			setting.setDesc(`Not downloaded (~${lang.estimatedSize})`);
 
-			if (lang.downloadUrl) {
+			if (lang.sources.length > 0) {
 				setting.addButton((btn) => {
 					btn.setButtonText(
 						`Download (${lang.estimatedSize})`

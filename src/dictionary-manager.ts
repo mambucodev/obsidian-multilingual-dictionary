@@ -6,9 +6,10 @@ import { parseTar } from "nanotar";
 import {
 	DictionaryData,
 	DictionarySettings,
+	DictionarySource,
+	SynsetEntry,
 	DATA_DIR,
 	SUPPORTED_LANGUAGES,
-	LanguageInfo,
 } from "./types";
 
 export class DictionaryManager {
@@ -47,9 +48,9 @@ export class DictionaryManager {
 			return false;
 		}
 
-		if (!langInfo.downloadUrl) {
+		if (langInfo.sources.length === 0) {
 			new Notice(
-				`No download URL configured for ${langInfo.name}. ` +
+				`No download sources configured for ${langInfo.name}. ` +
 					`Use the import buttons to load a dictionary file manually.`
 			);
 			return false;
@@ -59,31 +60,50 @@ export class DictionaryManager {
 			`Downloading ${langInfo.name} dictionary...`,
 			0
 		);
-		onProgress?.(`Downloading ${langInfo.name} dictionary...`);
 
 		try {
 			await this.ensureDataDir();
 
-			const response = await requestUrl({ url: langInfo.downloadUrl });
-			onProgress?.("Extracting...");
+			let merged: DictionaryData | null = null;
 
-			const xml = await this.extractXml(
-				response.arrayBuffer,
-				langInfo
-			);
+			for (let i = 0; i < langInfo.sources.length; i++) {
+				const source = langInfo.sources[i];
+				const label = source.label;
+				onProgress?.(
+					`Downloading ${label} (${i + 1}/${langInfo.sources.length})...`
+				);
 
-			onProgress?.("Parsing WordNet data...");
-			const dictData = parseWnLmf(xml, lang);
-			const jsonStr = JSON.stringify(dictData);
+				const response = await requestUrl({ url: source.url });
+				onProgress?.(`Extracting ${label}...`);
+
+				const xml = await this.extractXml(
+					response.arrayBuffer,
+					source
+				);
+
+				onProgress?.(`Parsing ${label}...`);
+				const dictData = parseWnLmf(xml, lang);
+
+				if (!merged) {
+					merged = dictData;
+				} else {
+					this.mergeDictionaries(merged, dictData);
+				}
+			}
+
+			if (!merged) {
+				throw new Error("No dictionary data produced");
+			}
 
 			onProgress?.("Saving...");
+			const jsonStr = JSON.stringify(merged);
 			await this.app.vault.adapter.write(
 				this.getDictPath(lang),
 				jsonStr
 			);
 
 			this.settings.languages[lang].downloaded = true;
-			this.settings.languages[lang].version = dictData.version;
+			this.settings.languages[lang].version = merged.version;
 			this.settings.languages[lang].size = jsonStr.length;
 			this.settings.languages[lang].lastUpdated = Date.now();
 
@@ -104,15 +124,50 @@ export class DictionaryManager {
 	}
 
 	/**
+	 * Merge entries from `source` into `target`.
+	 * For existing words, add new synset entries (deduplicated by synset_id).
+	 * For new words, add them directly.
+	 */
+	private mergeDictionaries(
+		target: DictionaryData,
+		source: DictionaryData
+	): void {
+		for (const [word, entries] of Object.entries(source.index)) {
+			const existing = target.index[word];
+			if (!existing) {
+				target.index[word] = entries;
+			} else {
+				// Merge: add entries with new synset_ids, prefer entries with definitions
+				const existingIds = new Set(
+					existing.map((e) => e.synset_id)
+				);
+				for (const entry of entries) {
+					if (!existingIds.has(entry.synset_id)) {
+						existing.push(entry);
+					} else if (entry.definition) {
+						// Replace existing empty entry with one that has a definition
+						const idx = existing.findIndex(
+							(e) =>
+								e.synset_id === entry.synset_id &&
+								!e.definition
+						);
+						if (idx !== -1) {
+							existing[idx] = entry;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/**
 	 * Extract XML string from the downloaded archive.
-	 * English: .xml.gz (gzip-compressed XML)
-	 * Others: .tar.xz (xz-compressed tar containing an XML file)
 	 */
 	private async extractXml(
 		data: ArrayBuffer,
-		langInfo: LanguageInfo
+		source: DictionarySource
 	): Promise<string> {
-		if (langInfo.format === "xml.gz") {
+		if (source.format === "xml.gz") {
 			return decompressGzip(data);
 		}
 
@@ -143,7 +198,6 @@ export class DictionaryManager {
 		content: string
 	): Promise<boolean> {
 		try {
-			// Validate it's proper dictionary JSON
 			const parsed = JSON.parse(content) as DictionaryData;
 			if (!parsed.index || !parsed.language || !parsed.version) {
 				new Notice(
