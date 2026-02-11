@@ -211,18 +211,38 @@ export class PopoverView {
 		if (!this.popoverEl) return;
 
 		const padding = 8;
-		let top = rect.bottom + padding;
-		let left = rect.left;
-
-		// Ensure it doesn't overflow the viewport
+		const vpH = window.innerHeight;
+		const vpW = window.innerWidth;
 		const popRect = this.popoverEl.getBoundingClientRect();
-		if (top + popRect.height > window.innerHeight) {
+
+		const spaceBelow = vpH - rect.bottom - padding;
+		const spaceAbove = rect.top - padding;
+
+		let top: number;
+
+		if (popRect.height <= spaceBelow) {
+			// Fits below
+			top = rect.bottom + padding;
+		} else if (popRect.height <= spaceAbove) {
+			// Fits above
 			top = rect.top - popRect.height - padding;
+		} else {
+			// Doesn't fit either way — cap height and position at the edge
+			// with the most space, make body scrollable
+			const maxH = Math.max(spaceBelow, spaceAbove);
+			this.popoverEl.style.maxHeight = `${maxH}px`;
+			this.popoverEl.style.overflowY = "auto";
+			top =
+				spaceBelow >= spaceAbove
+					? rect.bottom + padding
+					: vpH - maxH - padding;
 		}
-		if (left + popRect.width > window.innerWidth) {
-			left = window.innerWidth - popRect.width - padding;
+
+		let left = rect.left;
+		if (left + popRect.width > vpW) {
+			left = vpW - popRect.width - padding;
 		}
-		if (left < 0) left = padding;
+		if (left < padding) left = padding;
 
 		this.popoverEl.style.top = `${top}px`;
 		this.popoverEl.style.left = `${left}px`;
