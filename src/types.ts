@@ -87,3 +87,14 @@ export const DEFAULT_SETTINGS: DictionarySettings = {
 
 export const DICTIONARY_VIEW_TYPE = "dictionary-sidebar";
 export const DATA_DIR = "multilingual-dictionary/data";
+
+/**
+ * Interface for the plugin instance, used by settings and sidebar
+ * to avoid circular imports with main.ts.
+ */
+export interface IDictionaryPlugin {
+	settings: DictionarySettings;
+	dictionaryManager: import("./dictionary-manager").DictionaryManager;
+	lookupEngine: import("./lookup-engine").LookupEngine;
+	saveSettings(): Promise<void>;
+}

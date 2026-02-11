@@ -1,15 +1,15 @@
-import { App, PluginSettingTab, Setting, Notice } from "obsidian";
+import { App, Plugin, PluginSettingTab, Setting, Notice } from "obsidian";
 import {
 	DictionarySettings,
 	SUPPORTED_LANGUAGES,
 	LanguageInfo,
+	IDictionaryPlugin,
 } from "./types";
-import type MultilingualDictionaryPlugin from "./main";
 
 export class DictionarySettingTab extends PluginSettingTab {
-	plugin: MultilingualDictionaryPlugin;
+	plugin: Plugin & IDictionaryPlugin;
 
-	constructor(app: App, plugin: MultilingualDictionaryPlugin) {
+	constructor(app: App, plugin: Plugin & IDictionaryPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}

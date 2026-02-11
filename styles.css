@@ -193,6 +193,11 @@
 	margin: 4px 0;
 }
 
+.mdict-sidebar-definition-fallback {
+	font-style: italic;
+	color: var(--text-muted);
+}
+
 .mdict-sidebar-example {
 	color: var(--text-muted);
 	font-style: italic;

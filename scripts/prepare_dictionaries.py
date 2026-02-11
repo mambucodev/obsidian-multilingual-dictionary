@@ -9,18 +9,21 @@ Usage:
     python prepare_dictionaries.py en it     # Build specific languages
 """
 
+from __future__ import annotations
+
 import sys
 import json
 import gzip
 from collections import defaultdict
+from typing import Any
 
 try:
-    import wn
+    import wn  # type: ignore[import-untyped]
 except ImportError:
     print("Error: 'wn' package not installed. Run: pip install wn")
     sys.exit(1)
 
-LANGUAGES = {
+LANGUAGES: dict[str, str] = {
     "en": "oewn:2025",
     "it": "omw-it:1.4",
     "es": "omw-es:1.4",
@@ -38,15 +41,15 @@ def export_wordnet_to_json(lang_code: str, wordnet_id: str) -> None:
     print(f"Processing {lang_code} ({wordnet_id})...")
 
     try:
-        wn_obj = wn.Wordnet(wordnet_id)
+        wn_obj: Any = wn.Wordnet(wordnet_id)
     except wn.Error:
         print(f"  Downloading {wordnet_id}...")
         wn.download(wordnet_id)
         wn_obj = wn.Wordnet(wordnet_id)
 
-    index: dict[str, list[dict]] = defaultdict(list)
+    index: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
 
-    synsets = list(wn_obj.synsets())
+    synsets: list[Any] = list(wn_obj.synsets())
     total = len(synsets)
     print(f"  Found {total} synsets")
 
@@ -54,34 +57,31 @@ def export_wordnet_to_json(lang_code: str, wordnet_id: str) -> None:
         if (i + 1) % 5000 == 0:
             print(f"  Processing synset {i + 1}/{total}...")
 
-        lemmas = [lemma for lemma in synset.lemmas()]
+        lemmas: list[str] = list(synset.lemmas())
 
-        entry = {
+        hypernyms: list[str] = [
+            h.lemmas()[0] for h in synset.hypernyms() if h.lemmas()
+        ]
+        hyponyms: list[str] = [
+            h.lemmas()[0] for h in synset.hyponyms()[:5] if h.lemmas()
+        ]
+
+        entry: dict[str, Any] = {
             "synset_id": synset.id(),
             "pos": synset.pos(),
             "definition": synset.definition() or "",
             "examples": synset.examples() or [],
             "synonyms": lemmas,
-            "hypernyms": [
-                h.lemmas()[0] if h.lemmas() else ""
-                for h in synset.hypernyms()
-            ],
-            "hyponyms": [
-                h.lemmas()[0] if h.lemmas() else ""
-                for h in synset.hyponyms()[:5]
-            ],
+            "hypernyms": hypernyms,
+            "hyponyms": hyponyms,
         }
-
-        # Filter out empty strings from hypernyms/hyponyms
-        entry["hypernyms"] = [h for h in entry["hypernyms"] if h]
-        entry["hyponyms"] = [h for h in entry["hyponyms"] if h]
 
         for lemma in lemmas:
             index[lemma.lower()].append(entry)
 
     version = wordnet_id.split(":")[1] if ":" in wordnet_id else "1.0"
 
-    output = {
+    output: dict[str, Any] = {
         "version": version,
         "language": lang_code,
         "index": dict(index),

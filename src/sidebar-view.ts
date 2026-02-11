@@ -3,13 +3,13 @@ import {
 	DICTIONARY_VIEW_TYPE,
 	SynsetEntry,
 	SUPPORTED_LANGUAGES,
+	IDictionaryPlugin,
 } from "./types";
 import { LookupEngine } from "./lookup-engine";
 import { LanguageDetector } from "./language-detector";
-import type MultilingualDictionaryPlugin from "./main";
 
 export class DictionarySidebar extends ItemView {
-	private plugin: MultilingualDictionaryPlugin;
+	private plugin: IDictionaryPlugin;
 	private engine: LookupEngine;
 	private detector: LanguageDetector;
 	private resultsDiv: HTMLElement | null = null;
@@ -19,7 +19,7 @@ export class DictionarySidebar extends ItemView {
 
 	constructor(
 		leaf: WorkspaceLeaf,
-		plugin: MultilingualDictionaryPlugin,
+		plugin: IDictionaryPlugin,
 		engine: LookupEngine,
 		detector: LanguageDetector
 	) {
@@ -239,7 +239,41 @@ export class DictionarySidebar extends ItemView {
 		container: HTMLElement,
 		entries: SynsetEntry[]
 	): void {
-		for (const entry of entries) {
+		// Deduplicate by synset_id and filter out entries with no useful content
+		const seen = new Set<string>();
+		const filtered = entries.filter((entry) => {
+			if (seen.has(entry.synset_id)) return false;
+			seen.add(entry.synset_id);
+			return (
+				entry.definition ||
+				entry.synonyms.length > 1 ||
+				entry.examples.length > 0 ||
+				entry.hypernyms.length > 0
+			);
+		});
+
+		if (filtered.length === 0) {
+			// Fallback: show all synonyms across entries
+			const allSynonyms = new Set<string>();
+			for (const e of entries) {
+				for (const s of e.synonyms) allSynonyms.add(s);
+			}
+			if (allSynonyms.size > 0) {
+				const fallback = container.createDiv("mdict-sidebar-entry");
+				if (entries[0]?.pos) {
+					fallback.createEl("span", {
+						text: entries[0].pos,
+						cls: "mdict-sidebar-pos",
+					});
+				}
+				const synDiv = fallback.createDiv("mdict-sidebar-synonyms");
+				synDiv.createEl("span", { text: "Synonyms: ", cls: "mdict-label" });
+				synDiv.createEl("span", { text: Array.from(allSynonyms).join(", ") });
+			}
+			return;
+		}
+
+		for (const entry of filtered) {
 			const entryDiv = container.createDiv("mdict-sidebar-entry");
 
 			// Part of speech
@@ -250,11 +284,16 @@ export class DictionarySidebar extends ItemView {
 				});
 			}
 
-			// Definition
+			// Definition (or synonym fallback)
 			if (entry.definition) {
 				entryDiv.createEl("p", {
 					text: entry.definition,
 					cls: "mdict-sidebar-definition",
+				});
+			} else if (entry.synonyms.length > 1) {
+				entryDiv.createEl("p", {
+					text: entry.synonyms.join(", "),
+					cls: "mdict-sidebar-definition mdict-sidebar-definition-fallback",
 				});
 			}
 
@@ -270,8 +309,8 @@ export class DictionarySidebar extends ItemView {
 				}
 			}
 
-			// Synonyms
-			if (entry.synonyms.length > 1) {
+			// Synonyms (only if we showed a real definition above)
+			if (entry.definition && entry.synonyms.length > 1) {
 				const synDiv = entryDiv.createDiv("mdict-sidebar-synonyms");
 				synDiv.createEl("span", { text: "Synonyms: ", cls: "mdict-label" });
 				synDiv.createEl("span", { text: entry.synonyms.join(", ") });
