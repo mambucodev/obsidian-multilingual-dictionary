@@ -1,10 +1,14 @@
 import { App, Notice, requestUrl } from "obsidian";
 import { decompressGzip } from "./utils/compression";
+import { parseWnLmf } from "./utils/wn-lmf-parser";
+import { XzReadableStream } from "xz-decompress";
+import { parseTar } from "nanotar";
 import {
 	DictionaryData,
 	DictionarySettings,
 	DATA_DIR,
 	SUPPORTED_LANGUAGES,
+	LanguageInfo,
 } from "./types";
 
 export class DictionaryManager {
@@ -26,10 +30,6 @@ export class DictionaryManager {
 		return `${this.basePath}/${lang}-dict.json`;
 	}
 
-	private getCompressedDictPath(lang: string): string {
-		return `${this.basePath}/${lang}-dict.json.gz`;
-	}
-
 	async ensureDataDir(): Promise<void> {
 		const adapter = this.app.vault.adapter;
 		if (!(await adapter.exists(this.basePath))) {
@@ -49,7 +49,8 @@ export class DictionaryManager {
 
 		if (!langInfo.downloadUrl) {
 			new Notice(
-				`No download URL configured for ${langInfo.name}. Please set dictionary URLs in plugin settings or place dictionary files manually.`
+				`No download URL configured for ${langInfo.name}. ` +
+					`Use the import buttons to load a dictionary file manually.`
 			);
 			return false;
 		}
@@ -64,22 +65,27 @@ export class DictionaryManager {
 			await this.ensureDataDir();
 
 			const response = await requestUrl({ url: langInfo.downloadUrl });
-			onProgress?.("Decompressing...");
+			onProgress?.("Extracting...");
 
-			const jsonStr = decompressGzip(response.arrayBuffer);
+			const xml = await this.extractXml(
+				response.arrayBuffer,
+				langInfo
+			);
 
+			onProgress?.("Parsing WordNet data...");
+			const dictData = parseWnLmf(xml, lang);
+			const jsonStr = JSON.stringify(dictData);
+
+			onProgress?.("Saving...");
 			await this.app.vault.adapter.write(
 				this.getDictPath(lang),
 				jsonStr
 			);
 
 			this.settings.languages[lang].downloaded = true;
-			this.settings.languages[lang].lastUpdated = Date.now();
-
-			// Parse briefly to get version
-			const parsed = JSON.parse(jsonStr) as DictionaryData;
-			this.settings.languages[lang].version = parsed.version;
+			this.settings.languages[lang].version = dictData.version;
 			this.settings.languages[lang].size = jsonStr.length;
+			this.settings.languages[lang].lastUpdated = Date.now();
 
 			notice.hide();
 			new Notice(`${langInfo.name} dictionary installed successfully!`);
@@ -95,6 +101,41 @@ export class DictionaryManager {
 			onProgress?.(`Error: ${msg}`);
 			return false;
 		}
+	}
+
+	/**
+	 * Extract XML string from the downloaded archive.
+	 * English: .xml.gz (gzip-compressed XML)
+	 * Others: .tar.xz (xz-compressed tar containing an XML file)
+	 */
+	private async extractXml(
+		data: ArrayBuffer,
+		langInfo: LanguageInfo
+	): Promise<string> {
+		if (langInfo.format === "xml.gz") {
+			return decompressGzip(data);
+		}
+
+		// tar.xz: decompress xz, then extract tar, then find the XML
+		const xzStream = new XzReadableStream(
+			new Blob([data]).stream()
+		);
+		const tarBuffer = new Uint8Array(
+			await new Response(xzStream).arrayBuffer()
+		);
+
+		const files = parseTar(tarBuffer);
+		const xmlFile = files.find(
+			(f) => f.name.endsWith(".xml") && f.data && f.data.length > 0
+		);
+		if (!xmlFile) {
+			throw new Error(
+				"No XML file found in archive. Contents: " +
+					files.map((f) => f.name).join(", ")
+			);
+		}
+
+		return new TextDecoder().decode(xmlFile.data);
 	}
 
 	async importDictionaryFromFile(
