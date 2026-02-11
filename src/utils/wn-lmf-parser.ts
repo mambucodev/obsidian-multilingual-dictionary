@@ -154,7 +154,8 @@ export function parseWnLmf(xml: string, langCode: string): DictionaryData {
 	}
 
 	// Step 3: Build the word index
-	const index: Record<string, SynsetEntry[]> = {};
+	// Use Object.create(null) to avoid prototype pollution (e.g. word "constructor")
+	const index: Record<string, SynsetEntry[]> = Object.create(null);
 
 	for (const [synsetId, synsetData] of synsetMap) {
 		const words = synsetToWords.get(synsetId) ?? [];
