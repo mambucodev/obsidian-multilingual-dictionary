@@ -8,7 +8,8 @@ export class PopoverView {
 	private settings: DictionarySettings;
 	private popoverEl: HTMLElement | null = null;
 	private debounceTimer: ReturnType<typeof setTimeout> | null = null;
-	private static readonly DEBOUNCE_MS = 300;
+	private onOpenSidebar: ((word: string) => void) | null = null;
+	private static readonly DEBOUNCE_MS = 200;
 
 	constructor(
 		engine: LookupEngine,
@@ -24,10 +25,14 @@ export class PopoverView {
 		this.settings = settings;
 	}
 
+	setOnOpenSidebar(callback: (word: string) => void): void {
+		this.onOpenSidebar = callback;
+	}
+
 	/**
-	 * Call this when the user selects text. Debounces to avoid flicker.
+	 * Call this when the user double-clicks a word. Debounces to avoid flicker.
 	 */
-	onTextSelected(word: string, rect: DOMRect): void {
+	onWordSelected(word: string, rect: DOMRect): void {
 		if (this.debounceTimer) {
 			clearTimeout(this.debounceTimer);
 		}
@@ -42,7 +47,7 @@ export class PopoverView {
 		const cleaned = word.replace(/[^\p{L}\p{N}'-]/gu, "").trim();
 		if (!cleaned || cleaned.length < 2) return;
 
-		let lang: string;
+		let lang: string | undefined;
 		let entries: SynsetEntry[] | null = null;
 
 		// Try script detection first (for CJK)
@@ -53,13 +58,11 @@ export class PopoverView {
 		}
 
 		// Try auto-detect or default language
-		if (!entries) {
-			if (this.settings.autoDetect) {
-				const detected = this.detector.detectWord(cleaned);
-				if (detected) {
-					lang = detected;
-					entries = this.engine.lookup(cleaned, lang);
-				}
+		if (!entries && this.settings.autoDetect) {
+			const detected = this.detector.detectWord(cleaned);
+			if (detected) {
+				lang = detected;
+				entries = this.engine.lookup(cleaned, lang);
 			}
 		}
 
@@ -70,6 +73,23 @@ export class PopoverView {
 		}
 
 		if (!entries || entries.length === 0) return;
+
+		// Filter out empty entries (same logic as sidebar)
+		const seen = new Set<string>();
+		const filtered = entries.filter((e) => {
+			if (seen.has(e.synset_id)) return false;
+			seen.add(e.synset_id);
+			return (
+				e.definition ||
+				e.synonyms.length > 1 ||
+				e.examples.length > 0 ||
+				e.hypernyms.length > 0
+			);
+		});
+
+		if (filtered.length === 0 && entries.length === 0) return;
+
+		const toRender = filtered.length > 0 ? filtered : entries;
 
 		this.popoverEl = document.createElement("div");
 		this.popoverEl.addClass("mdict-popover");
@@ -83,16 +103,29 @@ export class PopoverView {
 
 		const body = this.popoverEl.createDiv("mdict-popover-body");
 
-		for (const entry of entries.slice(0, 3)) {
+		for (const entry of toRender.slice(0, 3)) {
 			this.renderEntry(body, entry);
 		}
 
-		if (entries.length > 3) {
+		if (toRender.length > 3) {
 			body.createEl("p", {
-				text: `... and ${entries.length - 3} more`,
+				text: `... and ${toRender.length - 3} more`,
 				cls: "mdict-popover-more",
 			});
 		}
+
+		// "Open in sidebar" footer link
+		const footer = this.popoverEl.createDiv("mdict-popover-footer");
+		const openLink = footer.createEl("a", {
+			text: "Open in sidebar",
+			href: "#",
+			cls: "mdict-popover-sidebar-link",
+		});
+		openLink.addEventListener("click", (e) => {
+			e.preventDefault();
+			this.hide();
+			this.onOpenSidebar?.(cleaned);
+		});
 
 		document.body.appendChild(this.popoverEl);
 		this.positionPopover(rect);
@@ -118,6 +151,11 @@ export class PopoverView {
 				text: entry.definition,
 				cls: "mdict-popover-definition",
 			});
+		} else if (entry.synonyms.length > 1) {
+			section.createEl("p", {
+				text: entry.synonyms.join(", "),
+				cls: "mdict-popover-definition mdict-popover-definition-fallback",
+			});
 		}
 
 		if (
@@ -135,6 +173,7 @@ export class PopoverView {
 
 		if (
 			this.settings.showInPopover.synonyms &&
+			entry.definition &&
 			entry.synonyms.length > 1
 		) {
 			const synDiv = section.createDiv("mdict-popover-synonyms");

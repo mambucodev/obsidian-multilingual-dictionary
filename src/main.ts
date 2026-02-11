@@ -1,4 +1,4 @@
-import { Plugin, WorkspaceLeaf } from "obsidian";
+import { Plugin, Menu, Editor, MarkdownView } from "obsidian";
 import {
 	DictionarySettings,
 	DEFAULT_SETTINGS,
@@ -33,6 +33,9 @@ export default class MultilingualDictionaryPlugin extends Plugin {
 			this.languageDetector,
 			this.settings
 		);
+		this.popoverView.setOnOpenSidebar((word) => {
+			this.lookupInSidebar(word);
+		});
 
 		// Register sidebar view
 		this.registerView(DICTIONARY_VIEW_TYPE, (leaf) => {
@@ -61,22 +64,38 @@ export default class MultilingualDictionaryPlugin extends Plugin {
 			},
 		});
 
-		// Add command: Look up selected word
+		// Add command: Look up selected word in sidebar
 		this.addCommand({
 			id: "lookup-selected-word",
 			name: "Look up selected word",
 			editorCallback: (editor) => {
-				const selection = editor.getSelection();
-				if (selection) {
-					this.lookupInSidebar(selection.trim());
+				const word = this.getWordFromEditor(editor);
+				if (word) {
+					this.lookupInSidebar(word);
 				}
 			},
 		});
 
-		// Register selection event for popover
-		this.registerDomEvent(document, "mouseup", (evt: MouseEvent) => {
-			this.handleSelectionChange(evt);
+		// Double-click on a word shows popover
+		this.registerDomEvent(document, "dblclick", (evt: MouseEvent) => {
+			this.handleDoubleClick(evt);
 		});
+
+		// Right-click context menu
+		this.registerEvent(
+			this.app.workspace.on("editor-menu", (menu, editor) => {
+				const word = this.getWordFromEditor(editor);
+				if (word) {
+					menu.addItem((item) => {
+						item.setTitle(`Look up "${word}"`)
+							.setIcon("book-open")
+							.onClick(() => {
+								this.lookupInSidebar(word);
+							});
+					});
+				}
+			})
+		);
 
 		// Load enabled dictionaries
 		await this.loadEnabledDictionaries();
@@ -150,25 +169,50 @@ export default class MultilingualDictionaryPlugin extends Plugin {
 		});
 	}
 
-	private handleSelectionChange(evt: MouseEvent): void {
-		const selection = window.getSelection();
-		if (!selection || selection.isCollapsed) {
-			return;
+	/**
+	 * Get the selected word, or the word under the cursor if nothing is selected.
+	 */
+	private getWordFromEditor(editor: Editor): string | null {
+		const selection = editor.getSelection();
+		if (selection && selection.trim().length >= 2) {
+			return selection.trim().split(/\s+/)[0];
 		}
 
-		const text = selection.toString().trim();
-		if (!text || text.length < 2 || text.includes(" ")) {
-			return;
-		}
+		// Get word under cursor
+		const cursor = editor.getCursor();
+		const line = editor.getLine(cursor.line);
+		if (!line) return null;
 
+		// Find word boundaries around cursor
+		let start = cursor.ch;
+		let end = cursor.ch;
+		const wordChars = /[\p{L}\p{N}'-]/u;
+
+		while (start > 0 && wordChars.test(line[start - 1])) start--;
+		while (end < line.length && wordChars.test(line[end])) end++;
+
+		const word = line.slice(start, end);
+		return word.length >= 2 ? word : null;
+	}
+
+	private handleDoubleClick(evt: MouseEvent): void {
 		// Only trigger within the editor area
 		const target = evt.target as HTMLElement;
 		if (!target.closest(".cm-content")) {
 			return;
 		}
 
-		const range = selection.getRangeAt(0);
-		const rect = range.getBoundingClientRect();
-		this.popoverView.onTextSelected(text, rect);
+		// Small delay to let the browser finish selecting the word
+		setTimeout(() => {
+			const selection = window.getSelection();
+			if (!selection || selection.isCollapsed) return;
+
+			const text = selection.toString().trim();
+			if (!text || text.length < 2 || /\s/.test(text)) return;
+
+			const range = selection.getRangeAt(0);
+			const rect = range.getBoundingClientRect();
+			this.popoverView.onWordSelected(text, rect);
+		}, 10);
 	}
 }
