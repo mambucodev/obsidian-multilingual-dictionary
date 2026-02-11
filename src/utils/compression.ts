@@ -1,4 +1,4 @@
-import pako from "pako";
+import * as pako from "pako";
 
 export function decompressGzip(data: ArrayBuffer): string {
 	const decompressed = pako.inflate(new Uint8Array(data));

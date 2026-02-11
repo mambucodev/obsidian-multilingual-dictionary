@@ -1,4 +1,4 @@
-import { Plugin, WorkspaceLeaf, EditorView } from "obsidian";
+import { Plugin, WorkspaceLeaf } from "obsidian";
 import {
 	DictionarySettings,
 	DEFAULT_SETTINGS,
