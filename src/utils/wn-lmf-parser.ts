@@ -199,6 +199,63 @@ export function parseWnLmf(xml: string, langCode: string): DictionaryData {
 	};
 }
 
+/**
+ * Extract a synset offset → definition map from WN-LMF XML.
+ * Used to harvest English definitions for backfilling non-English dictionaries.
+ * The key is the bare offset like "14127782-n" (stripped of the language prefix).
+ */
+export function parseWnLmfDefinitions(xml: string): Map<string, string> {
+	const parser = new XMLParser({
+		ignoreAttributes: false,
+		attributeNamePrefix: "@_",
+		isArray: (name) => ["Synset", "Definition"].includes(name),
+	});
+
+	const doc = parser.parse(xml);
+	const lexicon = doc.LexicalResource?.Lexicon;
+	if (!lexicon) return new Map();
+
+	const result = new Map<string, string>();
+	const synsets: unknown[] = ensureArray(lexicon.Synset);
+
+	for (const s of synsets) {
+		const synset = s as Record<string, unknown>;
+		const id = synset["@_id"] as string;
+		if (!id) continue;
+
+		const defs = ensureArray(synset.Definition);
+		if (defs.length === 0) continue;
+
+		const d = defs[0];
+		let definition = "";
+		if (typeof d === "string") {
+			definition = d;
+		} else if (typeof d === "object" && d !== null) {
+			definition =
+				((d as Record<string, unknown>)["#text"] as string) ?? "";
+		}
+
+		if (!definition) continue;
+
+		const offset = extractOffset(id);
+		if (offset) result.set(offset, definition);
+	}
+
+	return result;
+}
+
+/**
+ * Extract the bare PWN offset from a synset ID.
+ * e.g. "omw-en-14127782-n" → "14127782-n"
+ *      "omw-it-14127782-n" → "14127782-n"
+ *      "oewn-14127782-n"   → "14127782-n"
+ */
+export function extractOffset(synsetId: string): string | null {
+	// Match the numeric offset + POS at the end: "DIGITS-LETTER"
+	const match = synsetId.match(/(\d+-[nvasr])$/);
+	return match ? match[1] : null;
+}
+
 function ensureArray(val: unknown): unknown[] {
 	if (val === undefined || val === null) return [];
 	if (Array.isArray(val)) return val;

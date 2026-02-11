@@ -1,6 +1,10 @@
 import { App, Notice, requestUrl } from "obsidian";
 import { decompressGzip } from "./utils/compression";
-import { parseWnLmf } from "./utils/wn-lmf-parser";
+import {
+	parseWnLmf,
+	parseWnLmfDefinitions,
+	extractOffset,
+} from "./utils/wn-lmf-parser";
 import { XzReadableStream } from "xz-decompress";
 import { parseTar } from "nanotar";
 import {
@@ -11,6 +15,12 @@ import {
 	DATA_DIR,
 	SUPPORTED_LANGUAGES,
 } from "./types";
+
+const EN_FALLBACK_SOURCE: DictionarySource = {
+	url: "https://github.com/omwn/omw-data/releases/download/v1.4/omw-en-1.4.tar.xz",
+	format: "tar.xz",
+	label: "English definitions (fallback)",
+};
 
 export class DictionaryManager {
 	private app: App;
@@ -95,6 +105,14 @@ export class DictionaryManager {
 				throw new Error("No dictionary data produced");
 			}
 
+			// Backfill missing definitions with English for non-English languages
+			if (lang !== "en") {
+				await this.backfillEnglishDefinitions(
+					merged,
+					onProgress
+				);
+			}
+
 			onProgress?.("Saving...");
 			const jsonStr = JSON.stringify(merged);
 			await this.app.vault.adapter.write(
@@ -121,6 +139,49 @@ export class DictionaryManager {
 			onProgress?.(`Error: ${msg}`);
 			return false;
 		}
+	}
+
+	/**
+	 * Download the OMW English source and backfill any entries that have
+	 * no definition with the matching English definition (by PWN offset).
+	 */
+	private async backfillEnglishDefinitions(
+		dict: DictionaryData,
+		onProgress?: (message: string) => void
+	): Promise<void> {
+		onProgress?.("Downloading English definitions for fallback...");
+
+		const response = await requestUrl({ url: EN_FALLBACK_SOURCE.url });
+		onProgress?.("Extracting English definitions...");
+
+		const xml = await this.extractXml(
+			response.arrayBuffer,
+			EN_FALLBACK_SOURCE
+		);
+
+		onProgress?.("Parsing English definitions...");
+		const enDefs = parseWnLmfDefinitions(xml);
+
+		// Backfill: for each entry with no definition, look up by offset
+		let filled = 0;
+		for (const entries of Object.values(dict.index)) {
+			for (const entry of entries as SynsetEntry[]) {
+				if (entry.definition) continue;
+
+				const offset = extractOffset(entry.synset_id);
+				if (!offset) continue;
+
+				const enDef = enDefs.get(offset);
+				if (enDef) {
+					entry.definition = enDef;
+					filled++;
+				}
+			}
+		}
+
+		onProgress?.(
+			`Backfilled ${filled} definitions from English`
+		);
 	}
 
 	/**
