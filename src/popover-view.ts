@@ -76,16 +76,22 @@ export class PopoverView {
 
 		// Filter out empty entries (same logic as sidebar)
 		const seen = new Set<string>();
-		const filtered = entries.filter((e) => {
-			if (seen.has(e.synset_id)) return false;
-			seen.add(e.synset_id);
-			return (
-				e.definition ||
-				e.synonyms.length > 1 ||
-				e.examples.length > 0 ||
-				e.hypernyms.length > 0
-			);
-		});
+		const filtered = entries
+			.filter((e) => {
+				if (seen.has(e.synset_id)) return false;
+				seen.add(e.synset_id);
+				return (
+					e.definition ||
+					e.synonyms.length > 1 ||
+					e.examples.length > 0 ||
+					e.hypernyms.length > 0
+				);
+			})
+			.sort((a, b) => {
+				if (a.fallback && !b.fallback) return 1;
+				if (!a.fallback && b.fallback) return -1;
+				return 0;
+			});
 
 		if (filtered.length === 0 && entries.length === 0) return;
 
@@ -147,10 +153,16 @@ export class PopoverView {
 		}
 
 		if (this.settings.showInPopover.definitions && entry.definition) {
-			section.createEl("p", {
-				text: entry.definition,
+			const defEl = section.createEl("p", {
 				cls: "mdict-popover-definition",
 			});
+			if (entry.fallback) {
+				defEl.createEl("span", {
+					text: "en ",
+					cls: "mdict-popover-fallback-badge",
+				});
+			}
+			defEl.appendText(entry.definition);
 		} else if (entry.synonyms.length > 1) {
 			section.createEl("p", {
 				text: entry.synonyms.join(", "),

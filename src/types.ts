@@ -6,6 +6,8 @@ export interface SynsetEntry {
 	synonyms: string[];
 	hypernyms: string[];
 	hyponyms: string[];
+	/** True if the definition was backfilled from English */
+	fallback?: boolean;
 }
 
 export interface DictionaryData {

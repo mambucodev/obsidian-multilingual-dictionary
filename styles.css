@@ -229,3 +229,18 @@
 	margin-top: 6px;
 	font-size: var(--font-ui-smaller);
 }
+
+/* ─── Fallback badges ─── */
+
+.mdict-sidebar-fallback-badge,
+.mdict-popover-fallback-badge {
+	display: inline-block;
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+	padding: 0 4px;
+	border-radius: 3px;
+	font-size: var(--font-ui-smaller);
+	font-style: italic;
+	margin-right: 4px;
+	vertical-align: baseline;
+}

@@ -1,4 +1,4 @@
-import { App, Plugin, PluginSettingTab, Setting, Notice } from "obsidian";
+import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
 import {
 	DictionarySettings,
 	SUPPORTED_LANGUAGES,
@@ -110,13 +110,11 @@ export class DictionarySettingTab extends PluginSettingTab {
 				});
 			});
 		} else {
-			setting.setDesc(`Not downloaded (~${lang.estimatedSize})`);
+			setting.setDesc("Not downloaded");
 
 			if (lang.sources.length > 0) {
 				setting.addButton((btn) => {
-					btn.setButtonText(
-						`Download (${lang.estimatedSize})`
-					);
+					btn.setButtonText("Download");
 					btn.setCta();
 					btn.onClick(async () => {
 						btn.setDisabled(true);
@@ -136,77 +134,7 @@ export class DictionarySettingTab extends PluginSettingTab {
 					});
 				});
 			}
-
-			setting.addButton((btn) => {
-				btn.setButtonText("Import JSON");
-				btn.onClick(() => {
-					this.importDictionary(lang.code);
-				});
-			});
-
-			setting.addButton((btn) => {
-				btn.setButtonText("Import .gz");
-				btn.onClick(() => {
-					this.importGzipDictionary(lang.code);
-				});
-			});
 		}
-	}
-
-	private importDictionary(lang: string): void {
-		const input = document.createElement("input");
-		input.type = "file";
-		input.accept = ".json";
-		input.onchange = async () => {
-			const file = input.files?.[0];
-			if (!file) return;
-
-			try {
-				const text = await file.text();
-				const success =
-					await this.plugin.dictionaryManager.importDictionaryFromFile(
-						lang,
-						text
-					);
-				if (success) {
-					this.plugin.settings.languages[lang].enabled = true;
-					await this.plugin.saveSettings();
-					await this.plugin.lookupEngine.loadDictionary(lang);
-					this.display();
-				}
-			} catch (error) {
-				new Notice(`Failed to read file: ${error}`);
-			}
-		};
-		input.click();
-	}
-
-	private importGzipDictionary(lang: string): void {
-		const input = document.createElement("input");
-		input.type = "file";
-		input.accept = ".gz";
-		input.onchange = async () => {
-			const file = input.files?.[0];
-			if (!file) return;
-
-			try {
-				const buffer = await file.arrayBuffer();
-				const success =
-					await this.plugin.dictionaryManager.importDictionaryFromGzip(
-						lang,
-						buffer
-					);
-				if (success) {
-					this.plugin.settings.languages[lang].enabled = true;
-					await this.plugin.saveSettings();
-					await this.plugin.lookupEngine.loadDictionary(lang);
-					this.display();
-				}
-			} catch (error) {
-				new Notice(`Failed to read file: ${error}`);
-			}
-		};
-		input.click();
 	}
 
 	private addDisplaySettings(containerEl: HTMLElement): void {

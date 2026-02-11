@@ -241,16 +241,23 @@ export class DictionarySidebar extends ItemView {
 	): void {
 		// Deduplicate by synset_id and filter out entries with no useful content
 		const seen = new Set<string>();
-		const filtered = entries.filter((entry) => {
-			if (seen.has(entry.synset_id)) return false;
-			seen.add(entry.synset_id);
-			return (
-				entry.definition ||
-				entry.synonyms.length > 1 ||
-				entry.examples.length > 0 ||
-				entry.hypernyms.length > 0
-			);
-		});
+		const filtered = entries
+			.filter((entry) => {
+				if (seen.has(entry.synset_id)) return false;
+				seen.add(entry.synset_id);
+				return (
+					entry.definition ||
+					entry.synonyms.length > 1 ||
+					entry.examples.length > 0 ||
+					entry.hypernyms.length > 0
+				);
+			})
+			// Native definitions first, English fallbacks last
+			.sort((a, b) => {
+				if (a.fallback && !b.fallback) return 1;
+				if (!a.fallback && b.fallback) return -1;
+				return 0;
+			});
 
 		if (filtered.length === 0) {
 			// Fallback: show all synonyms across entries
@@ -286,10 +293,16 @@ export class DictionarySidebar extends ItemView {
 
 			// Definition (or synonym fallback)
 			if (entry.definition) {
-				entryDiv.createEl("p", {
-					text: entry.definition,
+				const defEl = entryDiv.createEl("p", {
 					cls: "mdict-sidebar-definition",
 				});
+				if (entry.fallback) {
+					defEl.createEl("span", {
+						text: "en ",
+						cls: "mdict-sidebar-fallback-badge",
+					});
+				}
+				defEl.appendText(entry.definition);
 			} else if (entry.synonyms.length > 1) {
 				entryDiv.createEl("p", {
 					text: entry.synonyms.join(", "),

@@ -174,6 +174,7 @@ export class DictionaryManager {
 				const enDef = enDefs.get(offset);
 				if (enDef) {
 					entry.definition = enDef;
+					entry.fallback = true;
 					filled++;
 				}
 			}
@@ -252,57 +253,6 @@ export class DictionaryManager {
 		}
 
 		return new TextDecoder().decode(xmlFile.data);
-	}
-
-	async importDictionaryFromFile(
-		lang: string,
-		content: string
-	): Promise<boolean> {
-		try {
-			const parsed = JSON.parse(content) as DictionaryData;
-			if (!parsed.index || !parsed.language || !parsed.version) {
-				new Notice(
-					"Invalid dictionary file: missing required fields (index, language, version)"
-				);
-				return false;
-			}
-
-			await this.ensureDataDir();
-			await this.app.vault.adapter.write(
-				this.getDictPath(lang),
-				content
-			);
-
-			this.settings.languages[lang].downloaded = true;
-			this.settings.languages[lang].version = parsed.version;
-			this.settings.languages[lang].size = content.length;
-			this.settings.languages[lang].lastUpdated = Date.now();
-
-			new Notice(
-				`${SUPPORTED_LANGUAGES.find((l) => l.code === lang)?.name ?? lang} dictionary imported successfully!`
-			);
-			return true;
-		} catch (error) {
-			const msg =
-				error instanceof Error ? error.message : String(error);
-			new Notice(`Failed to import dictionary: ${msg}`);
-			return false;
-		}
-	}
-
-	async importDictionaryFromGzip(
-		lang: string,
-		data: ArrayBuffer
-	): Promise<boolean> {
-		try {
-			const jsonStr = decompressGzip(data);
-			return await this.importDictionaryFromFile(lang, jsonStr);
-		} catch (error) {
-			const msg =
-				error instanceof Error ? error.message : String(error);
-			new Notice(`Failed to decompress dictionary: ${msg}`);
-			return false;
-		}
 	}
 
 	async loadDictionary(lang: string): Promise<DictionaryData | null> {
