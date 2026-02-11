@@ -1,0 +1,209 @@
+/* ─── Popover ─── */
+
+.mdict-popover {
+	position: fixed;
+	z-index: var(--layer-popover);
+	max-width: 400px;
+	min-width: 200px;
+	padding: 12px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	box-shadow: var(--shadow-s);
+	font-size: var(--font-ui-small);
+	line-height: 1.5;
+}
+
+.mdict-popover-header {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	margin-bottom: 8px;
+	padding-bottom: 6px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.mdict-popover-header strong {
+	font-size: var(--font-ui-medium);
+}
+
+.mdict-popover-lang {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.mdict-popover-entry {
+	margin-bottom: 8px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--background-modifier-border-hover);
+}
+
+.mdict-popover-entry:last-child {
+	margin-bottom: 0;
+	padding-bottom: 0;
+	border-bottom: none;
+}
+
+.mdict-popover-pos {
+	display: inline-block;
+	background: var(--background-modifier-hover);
+	color: var(--text-accent);
+	padding: 1px 6px;
+	border-radius: 4px;
+	font-size: var(--font-ui-smaller);
+	font-style: italic;
+	margin-bottom: 4px;
+}
+
+.mdict-popover-definition {
+	margin: 4px 0;
+}
+
+.mdict-popover-example {
+	color: var(--text-muted);
+	font-style: italic;
+	margin: 2px 0;
+	font-size: var(--font-ui-smaller);
+}
+
+.mdict-popover-more {
+	color: var(--text-muted);
+	font-style: italic;
+	text-align: center;
+	margin-top: 4px;
+}
+
+/* ─── Shared Labels ─── */
+
+.mdict-label {
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.mdict-popover-synonyms,
+.mdict-popover-hypernyms,
+.mdict-popover-hyponyms {
+	margin-top: 4px;
+	font-size: var(--font-ui-smaller);
+}
+
+/* ─── Sidebar ─── */
+
+.mdict-sidebar {
+	padding: 12px;
+}
+
+.mdict-sidebar-search {
+	display: flex;
+	gap: 6px;
+	margin-bottom: 12px;
+}
+
+.mdict-sidebar-input {
+	flex: 1;
+}
+
+.mdict-sidebar-lang-select {
+	max-width: 100px;
+}
+
+.mdict-sidebar-empty,
+.mdict-sidebar-no-results {
+	color: var(--text-muted);
+	text-align: center;
+	padding: 20px 0;
+}
+
+.mdict-sidebar-suggestions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+	padding: 8px 0;
+}
+
+.mdict-sidebar-suggestions p {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.mdict-sidebar-suggestion {
+	display: inline-block;
+	padding: 2px 8px;
+	background: var(--background-modifier-hover);
+	border-radius: 4px;
+	font-size: var(--font-ui-smaller);
+	cursor: pointer;
+}
+
+.mdict-sidebar-suggestion:hover {
+	background: var(--background-modifier-active-hover);
+}
+
+.mdict-sidebar-header {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.mdict-sidebar-header h4 {
+	margin: 0;
+}
+
+.mdict-sidebar-lang-badge {
+	background: var(--background-modifier-hover);
+	color: var(--text-accent);
+	padding: 2px 8px;
+	border-radius: 4px;
+	font-size: var(--font-ui-smaller);
+}
+
+.mdict-sidebar-lang-section {
+	margin-bottom: 16px;
+}
+
+.mdict-sidebar-lang-header {
+	color: var(--text-accent);
+	margin: 8px 0 4px;
+	font-size: var(--font-ui-small);
+}
+
+.mdict-sidebar-entry {
+	margin-bottom: 12px;
+	padding: 8px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+}
+
+.mdict-sidebar-pos {
+	display: inline-block;
+	background: var(--background-modifier-hover);
+	color: var(--text-accent);
+	padding: 1px 6px;
+	border-radius: 4px;
+	font-size: var(--font-ui-smaller);
+	font-style: italic;
+	margin-bottom: 4px;
+}
+
+.mdict-sidebar-definition {
+	margin: 4px 0;
+}
+
+.mdict-sidebar-example {
+	color: var(--text-muted);
+	font-style: italic;
+	margin: 2px 0;
+	font-size: var(--font-ui-smaller);
+}
+
+.mdict-sidebar-examples,
+.mdict-sidebar-synonyms,
+.mdict-sidebar-hypernyms,
+.mdict-sidebar-hyponyms {
+	margin-top: 6px;
+	font-size: var(--font-ui-smaller);
+}
