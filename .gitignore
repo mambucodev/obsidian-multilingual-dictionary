@@ -1,0 +1,19 @@
+# Build output
+main.js
+*.js.map
+
+# Node
+node_modules/
+
+# Dictionary data (downloaded at runtime)
+data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

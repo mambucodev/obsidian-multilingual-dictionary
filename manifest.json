@@ -1,0 +1,9 @@
+{
+	"id": "multilingual-dictionary",
+	"name": "Multilingual Dictionary",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "Offline dictionary lookups with synonym popover and sidebar views for 10 languages. Download only the dictionaries you need.",
+	"author": "mambuco",
+	"isDesktopOnly": false
+}
