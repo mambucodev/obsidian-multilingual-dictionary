@@ -20,7 +20,7 @@
 		"typescript": "4.7.4"
 	},
 	"dependencies": {
-		"fast-xml-parser": "^5.3.5",
+		"fast-xml-parser": "^5.3.6",
 		"nanotar": "^0.2.0",
 		"pako": "^2.1.0",
 		"snowball-stemmers": "^0.6.0",
